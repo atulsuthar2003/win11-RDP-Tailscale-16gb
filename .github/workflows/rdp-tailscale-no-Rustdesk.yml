@@ -1,4 +1,4 @@
-name: rdp tailscale no Rustdesk
+name: RDP + RustDesk + (Optional) CRD
 
 on:
   workflow_dispatch:
