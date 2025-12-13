@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------
-name: RDP + Tailscale + (Optional) Chrome Remote Desktop (A)
+name: rdp tailscale no Rustdesk
 
 on:
   workflow_dispatch:
