@@ -1,5 +1,4 @@
-# ----------------------------------------------------------------------
-name: RDP + Tailscale + (Optional) Chrome Remote Desktop
+name: RDP + Tailscale + (Optional) Chrome Remote Desktop (A)
 
 on:
   workflow_dispatch:
