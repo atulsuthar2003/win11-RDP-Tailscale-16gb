@@ -91,37 +91,6 @@ jobs:
           Set-ItemProperty "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name fDenyTSConnections -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop" | Out-Null
 
-      - name: Install RustDesk
-        run: |
-          $rdExe = "C:\Program Files\RustDesk\rustdesk.exe"
-          if (-not (Test-Path $rdExe)) {
-            Invoke-WebRequest -Uri "https://github.com/rustdesk/rustdesk/releases/download/1.3.1/rustdesk-1.3.1-x86_64.msi" -OutFile "$env:TEMP\rustdesk.msi"
-            Start-Process msiexec.exe -ArgumentList "/i","$env:TEMP\rustdesk.msi","/quiet","/norestart" -Wait
-          }
-
-      - name: Launch RustDesk + Safe Screenshot Upload
-        run: |
-          $rdExe = "C:\Program Files\RustDesk\rustdesk.exe"
-          Start-Process -FilePath $rdExe
-          Start-Sleep -Seconds 15
-          $screenshotPath = "$env:TEMP\rustdesk_${{ matrix.id }}.png"
-          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-          $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
-          $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-          $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
-          $bitmap.Save($screenshotPath, [System.Drawing.Imaging.ImageFormat]::Png)
-          
-          # Fixed Upload Logic
-          $curlResult = curl.exe -s -F "file=@$screenshotPath" https://store1.gofile.io/uploadFile
-          if ($curlResult -match '\{') {
-              $json = $curlResult | ConvertFrom-Json
-              if ($json.status -eq "ok") { 
-                  $url = $json.data.downloadPage
-                  "SCREENSHOT_URL=$url" | Out-File -Append $env:GITHUB_ENV
-                  Write-Host "Screenshot: $url"
-              }
-          } else { Write-Host "Gofile Upload Failed, but keeping session alive..." }
 
       - name: Keep alive
         run: |
@@ -133,30 +102,4 @@ jobs:
             Start-Sleep -Seconds 60
           }
 
-      - name: Dispatch next cycle
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $cycles = [int]"${{ inputs.cycles }}"
-          if ($cycles -gt 0) {
-            $next = $cycles - 1
-            $payload = @{
-              ts_tailnet      = "${{ inputs.ts_tailnet }}"
-              ts_api_key      = "${{ inputs.ts_api_key }}"
-              ts_authkey      = "${{ inputs.ts_authkey }}"
-              quick_test      = "${{ inputs.quick_test }}"
-              runtime_minutes = "${{ inputs.runtime_minutes }}"
-              cycles          = "$next"
-              rdp_count       = "${{ inputs.rdp_count }}"
-              crd_code        = "${{ inputs.crd_code }}"
-              crd_pin         = "${{ inputs.crd_pin }}"
-            }
-            # Triggers the same workflow again to keep it running 24/7
-            $url = "https://api.github.com/repos/${{ github.repository }}/actions/workflows/rdp-tailscale-B.yml/dispatches"
-            $body = @{ ref="${{ github.ref_name }}"; inputs=$payload } | ConvertTo-Json
-            Invoke-RestMethod -Method POST -Uri $url -Headers @{ Authorization="Bearer $env:GH_TOKEN" } -Body $body
-            Write-Host "Next cycle ($next) dispatched."
-          } else {
-            Write-Host "No more cycles. Stopping."
-          }
+  
